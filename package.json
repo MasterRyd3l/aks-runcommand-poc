@@ -1,0 +1,27 @@
+{
+  "name": "aks-runcommand-poc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "dependencies": {
+    "@azure/arm-containerservice": "^21.2.0",
+    "@azure/identity": "^4.5.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  },
+  "scripts": {
+    "demo": "ts-node index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MasterRyd3l/aks-runcommand-poc.git"
+  },
+  "author": "James Duan (jduan@microsoft.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/MasterRyd3l/aks-runcommand-poc/issues"
+  },
+  "homepage": "https://github.com/MasterRyd3l/aks-runcommand-poc#readme"
+}
