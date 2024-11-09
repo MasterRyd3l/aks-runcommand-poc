@@ -1,4 +1,4 @@
-import { ContainerServiceClient, ManagedCluster } from "@azure/arm-containerservice";
+import { ContainerServiceClient, ManagedCluster, RunCommandResult } from "@azure/arm-containerservice";
 import { InteractiveBrowserCredential } from "@azure/identity";
 
 const AZURE_CLI_APPID = "04b07795-8ddb-461a-bbee-02f9e1bf7b46";
@@ -36,33 +36,66 @@ async function getDEMOCluster() {
     return await client.managedClusters.get(AKS_RESOURCE_GROUP, AKS_RESOURCE_NAME);
 }
 
-function installChaosMesh(cluster: ManagedCluster) {
+async function runCommand(command:string) {
+    console.log("Running command on AKS:", command);
+
     const client = clientFactory.getClient();
 
-    return client.managedClusters.beginRunCommandAndWait(AKS_RESOURCE_GROUP, AKS_RESOURCE_NAME, {
-        command: "helm repo add chaos-mesh https://charts.chaos-mesh.org && helm repo update && kubectl create ns chaos-mesh && helm install chaos-mesh chaos-mesh/chaos-mesh -n=chaos-mesh --version 2.7.0"
+    const response = await client.managedClusters.beginRunCommandAndWait(AKS_RESOURCE_GROUP, AKS_RESOURCE_NAME, {
+        command
     });
+
+    console.log(`ID: ${response.id}`, `\nProvisioning State: ${response.provisioningState}`, `\nLogs: ${response.logs}`);
+
+    return response;
 }
 
-function removeChaosMesh(cluster: ManagedCluster) {
-    const client = clientFactory.getClient();
+function installChaosMesh() {
+    console.log("Installing Chaos Mesh...");
 
-    return client.managedClusters.beginRunCommandAndWait(AKS_RESOURCE_GROUP, AKS_RESOURCE_NAME, {
-        command: "helm uninstall chaos-mesh -n chaos-mesh"
-    });
+    const command = "helm repo add chaos-mesh https://charts.chaos-mesh.org && helm repo update && kubectl create ns chaos-testing && helm install chaos-mesh chaos-mesh/chaos-mesh -n=chaos-testing --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.7.0";
+
+    runCommand(command);
+}
+
+function removeChaosMesh() {
+    console.log("Removing Chaos Mesh...");
+
+    const command = "helm uninstall chaos-mesh -n chaos-testing && kubectl delete ns chaos-testing";
+
+    runCommand(command);
+}
+
+function runPodChaos() {
+    console.log("Running PodChaos...");
+
+    const command = `echo "apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: pod-kill-example
+  namespace: chaos-testing
+spec:
+  action: pod-kill
+  mode: all
+  selector:
+    namespaces:
+      - chaos-testing
+    labelSelectors:
+      'app.kubernetes.io/component': 'chaos-dashboard'
+  duration: 30s" | kubectl apply -f -`;
+
+    runCommand(command);
 }
 
 export async function demo() {
     try {
-        const demoCluster = await getDEMOCluster();
+        // const demoCluster = await getDEMOCluster();
 
-        const setupResponse = await installChaosMesh(demoCluster);
+        // await installChaosMesh();
 
-        console.log(JSON.stringify(setupResponse));
+        await runPodChaos();
 
-        // const cleanUpResponse = await removeChaosMesh(demoCluster);
-
-        // console.log(JSON.stringify(cleanUpResponse));
+        // await removeChaosMesh();
     } catch (exception) {
         console.log(JSON.stringify(exception));
     }
